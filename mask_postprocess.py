@@ -102,6 +102,7 @@ def vis_res(img_cv2, src_img, results, mask_threshold=0.3):
         print("label = ", label)
         label_size, baseline = cv2.getTextSize(
             label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        # tops = top
         top = max(top, label_size[1])
 
         cv2.rectangle(
@@ -119,7 +120,7 @@ def vis_res(img_cv2, src_img, results, mask_threshold=0.3):
         # mask
         class_mask = result["mask"]
 
-        class_mask = cv2.resize(class_mask, (right - left , bottom - top ))
+        class_mask = cv2.resize(class_mask, (right - left , bottom - top))
         mask = (class_mask > mask_threshold)
         roi = img_cv2[top: bottom, left: right][mask]
 
@@ -160,14 +161,65 @@ def vis_res(img_cv2, src_img, results, mask_threshold=0.3):
     # cv2.putText(img_cv2, label, (0, 15),
     #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255))
     src_size = src_img.shape
-    img_cv2 = cv2.resize(img_cv2, (src_size[1] , src_size[0] ))  #resize to original image scale for display
-    cv2.imwrite('maskrcnn_r50_res.jpg', img_cv2)
+    img_cv2 = cv2.resize(img_cv2, (src_size[1] , src_size[0]))  #resize to original image scale for display
+    cv2.imwrite('res.jpg', img_cv2)
 
     # plt.figure(figsize=(10, 8))
     # plt.imshow(img_cv2[:, :,::-1])
     # plt.axis("off")
     # plt.show()
 
-    rotated = cv2_rotate(src_img, 10)
-    cv2.imwrite('maskrcnn_r50_rotated.jpg', rotated)
+    # rotated = cv2_rotate(src_img, 10)
+    # cv2.imwrite('maskrcnn_r50_rotated.jpg', rotated)
+
+
+def vis_OD_res(img_cv2, src_img, results, score_thr):
+    for result in results:
+        # box
+        left, top, right, bottom = result["box"]
+        cv2.rectangle(img_cv2,
+                      (left, top),
+                      (right, bottom),
+                      (255, 0, 0), 1)
+
+        # class label
+        classid = result["classid"]
+        score = result["score"]
+        label = '%.2f' % score
+        classes = ["person", "bicycle", "car", "motorcycle", "airplane", "bus",
+            "train", "truck", "boat", "traffic light", "fire hydrant",
+            "stop sign", "parking meter", "bench", "bird", "cat", "dog",
+            "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
+            "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+            "skis", "snowboard", "sports ball", "kite", "baseball bat",
+            "baseball glove", "skateboard", "surfboard", "tennis racket",
+            "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl",
+            "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
+            "hot dog", "pizza", "donut", "cake", "chair", "couch",
+            "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
+            "mouse", "remote", "keyboard", "cell phone", "microwave",
+            "oven", "toaster", "sink", "refrigerator", "book", "clock",
+            "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
+        if classes:
+            assert (classid < len(classes))
+            label = '%s:%s' % (classes[classid], label)
+        print("label = ", label)
+        label_size, baseline = cv2.getTextSize(
+            label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        # tops = top
+        top = max(top, label_size[1])
+
+        cv2.rectangle(
+            img_cv2,
+            (left, top - round(1.1 * label_size[1])),
+            (left + round(1.1 * label_size[0]), top + baseline),
+            (255, 255, 255), cv2.FILLED)
+        cv2.putText(
+            img_cv2,
+            label,
+            (left, top),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+        cv2.imwrite('res_od.jpg', img_cv2)
+
 

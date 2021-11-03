@@ -8,6 +8,8 @@ import img_helper
 from model_convertor import ModelConvertor
 import mask_postprocess as mp
 import cv2
+import postprocess as op
+
 dir_path = os.path.split(os.path.realpath(__file__))[0]
 verbosity = "info"
 nloop = 1 # 10000
@@ -107,28 +109,8 @@ class TestModelConvertor(unittest.TestCase):
             cali_input_shape=(224, 224),
             save_cache_if_exists=True
         )
-    def test_int8_mmdet_MaskRCNN(self):
-        bsize = 1
-        convertor = ModelConvertor()
-        # convert onnx model to tensorRT model
-        onnx_model = "/home/yhuang/tensorRT_work/convert_trt_quantize/models/tmp.onnx"
-        prefix_model= os.path.split(onnx_model)[-1].split('.')[0]
-        trt_model_path = os.path.join(dir_path, "data/models/{}_int8cali_cocoval_calisize512_n500_precoco_bsize{}.trt".format(prefix_model, bsize))
-        engine_path = convertor.load_model(
-            onnx_model,
-            None,
-            onnx_model_path=None,
-            engine_path=trt_model_path,
-            explicit_batch=True,
-            precision='int8',
-            verbosity=verbosity,
-            max_calibration_size=500,
-            calibration_batch_size=8,
-            calibration_data='/home/jliu/data/coco/images/val2017/',
-            preprocess_func='preprocess_coco_mmdet_maskrcnn',
-            cali_input_shape=(1333, 800),
-            save_cache_if_exists=True
-        )
+    
+ 
     
     def test_mmdet_SSD_loadtrt(self):
         bsize = 1
@@ -393,7 +375,79 @@ class TestModelConvertor(unittest.TestCase):
                         win_name="tensorrt",
                         out_file=out_image_path)
                     print('output image to {}'.format(out_image_path))  
-                    print('time to infer for {} times={:.2f}s'.format(nloop, etime-stime))     
+                    print('time to infer for {} times={:.2f}s'.format(nloop, etime-stime))   
+
+    def test_mmdet_faster_rcnn_loadtrt(self):
+        bsize = 1
+        convertor = ModelConvertor()
+        img_readpath = '/home/yhuang/datasets/coco/val2017/'
+        img_savepath = os.path.join(dir_path, 'data/images/test_mmdet_faster_rcnn')
+        input_shape = (1, 3, 384, 384)
+        # laod tensorRT model
+        for trt_model_path in [ \
+            "/workspace/public/basemodel/cv/object_detection/faster_rcnn/faster_rcnn_r50_torch/trt/faster_rcnn_r50_3x384x384_dynamicbatch_fp32.trt", \
+            #  "/home/jliu/data/models/RetinaNet_int8.plan", \
+        ]:
+            convertor.load_model(trt_model_path, dummy_input=None, onnx_model_path=None, engine_path=None)
+
+            # for relpath in os.listdir('/home/jliu/data/coco/val2017'):
+            for relimgpath in [
+                # '000000000139.jpg',
+                # '000000255917.jpg',
+                # '000000037777.jpg',
+                '000000397133.jpg',
+                # '000000000632.jpg',
+                ]:
+                single_image_path = os.path.join(img_readpath, relimgpath)
+                input_config = {
+                    'input_shape': input_shape,
+                    'input_path': single_image_path,
+                    'normalize_cfg': {
+                        'mean': (123.675, 116.28, 103.53),
+                        'std': (58.395, 57.12, 57.375)
+                        }}
+                one_img, one_meta = img_helper.preprocess_example_input(input_config)
+                batch_in = one_img.contiguous().detach().numpy()
+                stime = time.time()
+                for iloop in range(0, nloop):
+                    _, _, number_boxes, boxes, scores, labels = convertor.predict(batch_in)
+                etime = time.time()
+                
+                # print("boxes : \n{}".format(boxes))
+                # print("scores: \n{}".format(scores))
+                # print("labels: \n{}".format(labels))
+                # threshold = 0.4
+                # op.vis_image(single_image_path, boxes, scores, labels, threshold, input_shape)
+                classes = labels 
+                bboxes = boxes
+                op.plt_bboxes(single_image_path, classes, scores, bboxes)
+
+                # boxes_and_scores = op.get_boxes_and_scores(boxes, scores)
+                # thresh = 0.3
+                # keep_dets = op.py_nms(boxes_and_scores, thresh)
+                # print("kepp_dets = ", keep_dets)
+                # print(boxes_and_scores[keep_dets])
+                # save image
+                # boxes_and_scores = np.squeeze(boxes_and_scores, axis=0)
+                # labels = np.rint(np.squeeze(labels, axis=0)).astype(np.int32)
+                # for score_thr in [0.3, 0.4]: # modify here
+                #     prefix_image= os.path.split(single_image_path)[-1].split('.')[0]
+                #     prefix_model= os.path.split(trt_model_path)[-1].split('.')[0]
+                #     out_image_path = os.path.join(img_savepath, prefix_model+'_input_'+prefix_image+"_score"+str(score_thr)+'.jpg')
+                #     img_helper.imshow_det_bboxes(
+                #         one_meta['show_img'],
+                #         boxes_and_scores,
+                #         labels,
+                #         class_names=img_helper.coco_classes(),
+                #         score_thr=score_thr,
+                #         bbox_color='red',
+                #         text_color='red',
+                #         thickness=1,
+                #         font_size=4,
+                #         win_name="tensorrt",
+                #         out_file=out_image_path)
+                #     print('output image to {}'.format(out_image_path))  
+                #     print('time to infer for {} times={:.2f}s'.format(nloop, etime-stime))   
 
 if __name__ == '__main__':
     # TestModelConvertor().test_fp32_mmdet_SSD()
@@ -407,6 +461,8 @@ if __name__ == '__main__':
     # TestModelConvertor().test_mmdet_retinanet_loadtrt()
     
     # TestModelConvertor().test_int8_mmdet_MaskRCNN()
-    TestModelConvertor().test_mmdet_maskrcnn_loadtrt()
+    # TestModelConvertor().test_mmdet_maskrcnn_loadtrt()
     # TestModelConvertor().test_int8_mmdet_SSD_Resnet18()
     # TestModelConvertor().test_fp16_mmdet_SSD_Resnet18()
+
+    TestModelConvertor().test_mmdet_faster_rcnn_loadtrt()
