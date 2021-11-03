@@ -67,13 +67,22 @@ def vis_image(images, boxes, scores, labels, threshold, input_shape):
     src_image_size = cv2.resize(img_cv2, (w, h))
     cv2.imwrite("res_od.jpg", src_image_size)
 
-def plt_bboxes(img_path, classes, scores, bboxes, figsize=(10,10), linewidth=1.5):
+def plt_bboxes(img_path, classes, scores, bboxes, threshold, figsize=(10,10), linewidth=1.5):
     """Visualize bounding boxes. Largely inspired by SSD-MXNET!
     """
     img = mpimg.imread(img_path)
     bboxes= np.squeeze(bboxes, axis=0)
     classes= np.squeeze(classes, axis=0)
     scores = np.squeeze(scores, axis=0)
+    # 筛选出大于score threshold的box
+    number_boxes_list = []
+    for box_score in scores.tolist():
+        if box_score != 0. and box_score > threshold:
+            number_boxes_list.append(box_score)
+    number_boxes = len(number_boxes_list)
+    bboxes = bboxes[0 : number_boxes]
+    classes = classes[0 : number_boxes]
+
     fig = plt.figure(figsize=figsize)
     plt.imshow(img)
     height = img.shape[0]

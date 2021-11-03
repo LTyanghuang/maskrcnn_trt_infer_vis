@@ -420,7 +420,8 @@ class TestModelConvertor(unittest.TestCase):
                 # op.vis_image(single_image_path, boxes, scores, labels, threshold, input_shape)
                 classes = labels 
                 bboxes = boxes
-                op.plt_bboxes(single_image_path, classes, scores, bboxes)
+                threshold = 0.4
+                op.plt_bboxes(single_image_path, classes, scores, bboxes, threshold)
 
                 # boxes_and_scores = op.get_boxes_and_scores(boxes, scores)
                 # thresh = 0.3
